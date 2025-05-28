@@ -1,0 +1,77 @@
+---
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+  settings:
+    gci:
+      sections:
+        # Captures all standard packages if they do not match another section.
+        - standard
+        # Contains all imports that could not be matched to another section type.
+        - default
+        # Groups all imports with the specified Prefix.
+        - prefix(github.com/tetratelabs/kong2eg)
+    gofmt:
+      simplify: true
+    gofumpt:
+      extra-rules: true
+    goimports:
+      # put imports beginning with prefix after 3rd-party packages;
+      # it's a comma-separated list of prefixes
+      local-prefixes:
+        - github.com/tetratelabs/kong2eg/
+issues:
+  # Show the complete output
+  max-issues-per-linter: 0
+  max-same-issues: 0
+linters:
+  enable:
+    - bodyclose
+    - copyloopvar
+    - errorlint
+    - gocritic
+    - goheader
+    - gosec
+    - importas
+    - misspell
+    - revive
+    - staticcheck
+    - testifylint
+    - unconvert
+    - unparam
+  settings:
+    copyloopvar:
+      check-alias: true
+    goheader:
+      # Note that because the format is different (this needs no comment markers),
+      # updating this text means also updating /tools/boilerplate.txt so that
+      # `make generate` will update the generated files correctly.
+      template: |-
+        Copyright (c) Tetrate, Inc All Rights Reserved.
+    govet:
+      disable:
+        - shadow
+        - fieldalignment
+      enable-all: true
+    importas:
+      # Do not allow unaliased imports of aliased packages.
+      no-unaliased: true
+      # Do not allow non-required aliases.
+      no-extra-aliases: false
+    revive:
+      # TODO: enable if-return check
+      rules:
+        - name: if-return
+          disabled: true
+    testifylint:
+      enable-all: true
+    unparam:
+      check-exported: false
+output:
+  show-stats: false
+run:
+  timeout: 10m
+version: "2"

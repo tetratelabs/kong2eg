@@ -1,33 +1,107 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  annotations:
+    extension.tetrate.io/generator: kong2eg
+    tetrate.io/generated-by: kong2eg
+  name: kong-config
+  namespace: "envoy-gateway-system"
+  labels:
+    extension.tetrate.io/kong-config: "true"
+    app: kong2envoy
+data:
+  config: |+
+    kong.yaml: |+
+      _format_version: "3.0"
+      _transform: true
+      services:
+      - name: receiver
+        url: http://localhost:16002
+        routes:
+        - name: my-route-0
+          hosts:
+          - www.example.com
+          paths:
+          - /
+          plugins:
+          - name: request-transformer
+            config:
+              add:
+                headers:
+                - "x-kong-request-header-1:foo"
+                - "x-kong-request-header-2:bar"
+          - name: response-transformer
+            config:
+              add:
+                headers:
+                - "x-kong-response-header-1:foo"
+                - "x-kong-response-header-2:bar"
+        - name: my-route-1
+          hosts:
+          - foo.bar.com
+          paths:
+          - /
+          plugins:
+          - name: request-transformer
+            config:
+              add:
+                headers:
+                - "x-kong-request-header-3:foo"
+                - "x-kong-request-header-4:bar"
+          - name: response-transformer
+            config:
+              add:
+                headers:
+                - "x-kong-response-header-3:foo"
+                - "x-kong-response-header-4:bar"
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  annotations:
+    tetrate.io/generated-by: kong2eg
+  name: eg
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
 ---
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: EnvoyExtensionPolicy
 metadata:
+  annotations:
+    tetrate.io/generated-by: kong2eg
   name: kong2envoy
+  namespace: default
 spec:
   targetRefs:
     - group: gateway.networking.k8s.io
-      kind: HTTPRoute
-      name: backend
+      kind: Gateway
+      name: eg
   extProc:
   - backendRefs:
     - name: kong2envoy
       kind: Backend
       group: gateway.envoyproxy.io
+    messageTimeout: 10s
     processingMode:
-      request: {}
-      response: {}
+      request:
+        body: Buffered
+      response:
+        body: Buffered
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
+  annotations:
+    tetrate.io/generated-by: kong2eg
   name: eg
+  namespace: default
 spec:
   gatewayClassName: eg
   infrastructure:
     parametersRef:
       group: gateway.envoyproxy.io
       kind: EnvoyProxy
-      name: custom-proxy-config
+      name: kong2eg-proxy-config
   listeners:
     - name: http
       protocol: HTTP
@@ -36,7 +110,10 @@ spec:
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: EnvoyProxy
 metadata:
-  name: custom-proxy-config
+  annotations:
+    tetrate.io/generated-by: kong2eg
+  name: kong2eg-proxy-config
+  namespace: default
 spec:
   logging:
     level:
@@ -50,9 +127,9 @@ spec:
           - name: socket-dir
             mountPath: /var/sock/kong
         initContainers:
-        - name: ext-proc
+        - name: kong2envoy
           restartPolicy: Always
-          image: zhaohuabing/kong2envoy:latest
+          image: tetrate/kong2envoy:v0.3.3
           readinessProbe:
             exec:
               command: ["kong", "health"]
@@ -67,7 +144,7 @@ spec:
           - name: CPU_REQUEST
             valueFrom:
               resourceFieldRef:
-                containerName: ext-proc
+                containerName: kong2envoy
                 resource: requests.cpu
           - name: NAMESPACE
             valueFrom:
@@ -99,7 +176,7 @@ spec:
             runAsNonRoot: true
         pod:
           labels:
-            app: envoy-extproc
+            app: kong2envoy  # this label is used by kong2envoy to match the ConfigMap that contains the Kong configuration
           volumes:
             - name: podinfo
               downwardAPI:
@@ -115,15 +192,22 @@ spec:
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: Backend
 metadata:
+  annotations:
+    tetrate.io/generated-by: kong2eg
   name: kong2envoy
+  namespace: default
 spec:
   endpoints:
   - unix:
       path: /var/sock/kong/ext-proc.sock
 ---
+# RoleBinding is created to grant kong2envoy ConfigMap read permissions.
+# This is necessary for kong2envoy to load the Kong configuration from ConfigMaps.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
+  annotations:
+    tetrate.io/generated-by: kong2eg
   name: envoy-default-eg-e41e7b31
   namespace: envoy-gateway-system
 roleRef:
@@ -133,11 +217,12 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: envoy-default-eg-e41e7b31
-  namespace: envoy-gateway-system
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
+  annotations:
+    tetrate.io/generated-by: kong2eg
   name: envoy-default-eg-e41e7b31
   namespace: envoy-gateway-system
 rules:
