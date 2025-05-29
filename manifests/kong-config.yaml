@@ -5,7 +5,7 @@ metadata:
   namespace: envoy-gateway-system
   labels:
     extension.tetrate.io/kong-config: "true"
-    app: envoy-extproc
+    app: kong2envoyx
 data:
   config: |+
     kong.yaml: |+
