@@ -36,6 +36,8 @@ kubectl apply -f https://github.com/envoyproxy/gateway/releases/download/v1.4.0/
 
 This step deploys kong2envoy as a sidecar to Envoy Proxy and sets up an EnvoyExtensionPolicy to use it for request and response processing.
 
+It also creates a Role and RoleBinding to grant kong2envoy ConfigMap read permissions. This is necessary for kong2envoy to load the Kong configuration from the ConfigMap.
+
 ```bash
 kubectl apply -f manifests
 ```
@@ -67,7 +69,3 @@ You should see response headers added by Kong:
    "8"
   ]
 ```
-
-Caveats:
-
-* kong2envoy needs ConfigMap read permissions to load Kong configuration. As a temporary workaround, this demo creates a RoleBinding to grant the necessary permissions. This is a known limitation and should be addressed properly in future versions of Envoy Gateway.
