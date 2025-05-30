@@ -27,7 +27,7 @@ spec:
     parametersRef:
       group: gateway.envoyproxy.io
       kind: EnvoyProxy
-      name: custom-proxy-config
+      name: kong2eg-proxy-config
   listeners:
     - name: http
       protocol: HTTP
@@ -36,7 +36,7 @@ spec:
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: EnvoyProxy
 metadata:
-  name: custom-proxy-config
+  name: kong2eg-proxy-config
 spec:
   logging:
     level:

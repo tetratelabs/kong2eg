@@ -57,7 +57,7 @@ spec:
     parametersRef:
       group: gateway.envoyproxy.io
       kind: EnvoyProxy
-      name: custom-proxy-config
+      name: kong2eg-proxy-config
   listeners:
     - name: http
       protocol: HTTP
@@ -68,7 +68,7 @@ kind: EnvoyProxy
 metadata:
   annotations:
     tetrate.io/generated-by: kong2eg
-  name: custom-proxy-config
+  name: kong2eg-proxy-config
   namespace: {{ default "envoy-gateway-system" .Namespace }}
 spec:
   logging:
