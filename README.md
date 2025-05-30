@@ -1,7 +1,8 @@
 # Kong2eg
 
-This repository demonstrates how to use kong2envoy to migrate from Kong to Envoy Gateway.
-Most existing Kong plugins are supported — except those that require a database.
+This repository demonstrates how to use kong2envoy and ingress2gateway to migrate from Kong to Envoy Gateway.
+Most existing Kong plugins can still be used after the migration—except those that require a database.
+Ingress API resources will be automatically converted to Gateway API resources.
 
 # How it works
 
@@ -176,7 +177,7 @@ spec:
               emptyDir: {}
 ```
 
-2. Create a `GatewayClass` resource. GatewayClass is used to define the controller that will be used to manage the Gateway resource.
+1. Create a `GatewayClass` resource. GatewayClass is used to define the controller that will be used to manage the Gateway resource.
 
 ```yaml
 apiVersion: gateway.networking.k8s.io/v1
@@ -187,7 +188,7 @@ spec:
   controllerName: gateway.envoyproxy.io/gatewayclass-controller
 ```
 
-2. Create a `Gateway` resource. Envoy Gateway will watch the Gateway resource and deploy Envoy Proxy for it. Reference the `EnvoyProxy` resource that you created in step 1 in the `infrastructure` field.
+1. Create a `Gateway` resource. Envoy Gateway will watch the Gateway resource and deploy Envoy Proxy for it. Reference the `EnvoyProxy` resource that you created in step 1 in the `infrastructure` field.
 
 Note: `EnvoyProxy` resource can also be [associated with a `GatewayClass` to apply it to all `Gateway` resources of that `GatewayClass`](https://gateway.envoyproxy.io/docs/tasks/operations/customize-envoyproxy/).
 
@@ -209,7 +210,7 @@ spec:
       port: 80
 ```
 
-2. Create a `Role` and `RoleBinding` to grant kong2envoy ConfigMap read permissions. Please change the name of the Role and RoleBinding to match your Envoy service account name.
+1. Create a `Role` and `RoleBinding` to grant kong2envoy ConfigMap read permissions. Please change the name of the Role and RoleBinding to match your Envoy service account name.
 
 The Envoy service account name is the same as the Envoy deployment name. It's usually in the format of `envoy-default-eg-xxxxxxxx`.
 
@@ -219,7 +220,7 @@ You can find the Envoy service account name by running the following command:
 kubectl get sa -n envoy-gateway-system --selector=gateway.envoyproxy.io/owning-gateway-name=${GATEWAY_NAME}
 ```
 
-${GATEWAY_NAME} is the name of the Gateway resource that you created in step 1.
+`${GATEWAY_NAME}` is the name of the Gateway resource that you created in step 1.
 
 For example:
 
@@ -262,7 +263,7 @@ rules:
   - watch
 ```
 
-3. Create one or more `HTTPRoute` resources to define the routing rules for your application.
+1. Create one or more `HTTPRoute` resources to define the routing rules for your application.
 
 ```yaml
 apiVersion: gateway.networking.k8s.io/v1
@@ -289,7 +290,7 @@ spec:
         value: /
 ```
 
-3. Create a `Backend` resource to define the backend service that will be used by Envoy Proxy to connect to kong2envoy.
+1. Create a `Backend` resource to define the backend service that will be used by Envoy Proxy to connect to kong2envoy.
 
 ```yaml
 apiVersion: gateway.envoyproxy.io/v1alpha1
@@ -302,7 +303,7 @@ spec:
       path: /var/sock/kong/ext-proc.sock
 ```
 
-4. Create an `EnvoyExtensionPolicy` resource to tell Envoy Proxy to use kong2envoy as an external processing extension.
+1. Create an `EnvoyExtensionPolicy` resource to tell Envoy Proxy to use kong2envoy as an external processing extension.
 
 ```yaml
 apiVersion: gateway.envoyproxy.io/v1alpha1
@@ -324,7 +325,7 @@ spec:
       response: {}
 ```
 
-5. Configure the Kong configuration in a ConfigMap. You can migrate your existing Kong configuration to the ConfigMap.
+1. Configure the Kong configuration in a ConfigMap. You can migrate your existing Kong configuration to the ConfigMap.
 
 ```yaml
 apiVersion: v1
