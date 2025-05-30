@@ -1,36 +1,49 @@
-# Kong2eg
+# kong2eg
 
-This repository demonstrates how to use kong2envoy and ingress2gateway to migrate from Kong to Envoy Gateway.
-Most existing Kong plugins can still be used after the migration—except those that require a database.
-Ingress API resources will be automatically converted to Gateway API resources.
+kong2eg is a tool that helps you migrate from Kong Gateway to Envoy Gateway by running Kong as an external processing extension inside Envoy Proxy. It allows you to continue using your existing Kong plugins for request and response processing, while routing decisions are handled by Envoy Gateway.
+
+Most existing Kong plugins can still be used after migration—except those that require a database.
 
 # How it works
 
-This diagram shows how Envoy Gateway, Envoy, Kong2envoy,and Kong work together:
+This diagram shows how Envoy Gateway, Envoy, kong2envoy, and Kong work together:
 
 ![kong2envoy](images/kong2eg.png)
 
+* kong2eg generates all the necessary resources to deploy Kong as an external processing extension for Envoy Gateway.
 * Envoy Gateway deploys kong2envoy as a sidecar to Envoy Proxy and sets up an EnvoyExtensionPolicy to use it for request and response processing.
-* Kong2envoy is implemented as an [External Processing Extension](https://gateway.envoyproxy.io/docs/tasks/extensibility/ext-proc/)
+* kong2envoy is implemented as an [External Processing Extension](https://gateway.envoyproxy.io/docs/tasks/extensibility/ext-proc/)
 that communicates with Envoy Proxy using gRPC over an Unix domain socket.
-* Envoy Proxy forwards requests and responses to Kong2envoy for processing before forwarding them to the backend or client.
-* Kong2envoy runs a Kong instance in its own container and forwards requests and responses to Kong for processing.
+* Envoy Proxy forwards requests and responses to kong2envoy for processing before forwarding them to the backend or client.
+* Inside kong2envoy, a Kong instance processes requests and responses using a ConfigMap-provided configuration.
 
-You define the Kong configuration in a ConfigMap labeled:
-
-```yaml
-extension.tetrate.io/kong-config: "true"
-app: kong2envoy
-```
+The Kong configuration is stored in a ConfigMap, which is mounted into the kong2envoy container. kong2envoy reads the configuration from the ConfigMap and applies it to the Kong instance running inside the container.
 
 All routing decisions are made by Envoy Gateway.
 Kong is only responsible for modifying requests and responses (e.g., adding headers, modifying body, etc).
 
-# Demo
+# Installation
 
-This repository contains a quickstart demo that you can use to test kong2envoy.
+Download the kong2envoy binary from the [releases page](https://github.com/tetratelabs/kong2eg/releases) or install it using:
 
-## Install Envoy Gateway with Backend resource enabled:
+```bash
+go install github.com/tetratelabs/kong2eg@latest
+```
+
+To build from source:
+
+```bash
+git clone https://github.com/tetratelabs/kong2eg.git
+make build
+```
+
+# Migrating from Kong Gateway to Envoy Gateway
+
+## Step 1: Install Envoy Gateway with Backend API enabled
+
+Envoy Gateway Backend API is a Gateway API exension that allows Envoy Gateway to communicate with non-kubernetes backends, such as UDS sockets, IP addresses, and DNS names.
+
+We need to enable the Backend API because Envoy proxy uses a UDS socket to communicate with kong2envoy, which is running as a sidecar to Envoy Proxy.
 
 ```bash
 helm install eg oci://docker.io/envoyproxy/gateway-helm \
@@ -40,22 +53,36 @@ helm install eg oci://docker.io/envoyproxy/gateway-helm \
   --create-namespace
 ```
 
-## Deploy the demo app
+## Step 2: Deploy the Demo App
 
-Deploy the demo app from the Envoy Gateway quickstart.
+To get a sense of how kong2eg works, we will deploy a demo app that uses Kong plugins for request and response processing.
+
+Install the quickstart demo app from the Envoy Gateway repository.
 
 ```bash
 kubectl apply -f https://github.com/envoyproxy/gateway/releases/download/v1.4.0/quickstart.yaml
 ```
 
-## Install kong2envoy
+## Step 3: Use kong2eg CLI to Deploy kong2envoy
 
-This step deploys kong2envoy as a sidecar to Envoy Proxy and sets up an EnvoyExtensionPolicy to use it for request and response processing.
-
-It also creates a Role and RoleBinding to grant kong2envoy ConfigMap read permissions. This is necessary for kong2envoy to load the Kong configuration from configMaps.
+Then we use the kong2eg CLI to generate the necessary resources to deploy kong2envoy as an external processing extension in Envoy Gateway.
 
 ```bash
-kubectl apply -f kong2envoy
+kong2eg print | kubectl apply -f -
+```
+
+This command generates the below resources and applies them to the cluster:
+* GatewayClass and Gateway resources to deploy Envoy Proxy.
+* EnvoyProxy resource to deploy kong2envoy as a sidecar to Envoy Proxy.
+* Backend resource to define the UDS socket that kong2envoy will use to communicate with Envoy Proxy.
+* EnvoyExtensionPolicy resource to tell Envoy Proxy to use kong2envoy for request and response processing.
+* A ConfigMap containing the demo Kong configuration, which adds request and response headers to the requests and responses.
+* Role and RoleBinding to grant kong2envoy ConfigMap read permissions.
+
+You can view the generated resources by running the following command:
+
+```bash
+kong2eg print
 ```
 
 ## Test the Setup
@@ -86,15 +113,39 @@ You should see response headers added by Kong:
   ]
 ```
 
-# Migrate Your Kong Gateway to Envoy Gateway
+## Migrate Your Kong Gateway to Envoy Gateway
 
-## Kong Plugins Migration
+The demo gives us a basice understanding of how Kong2eg works. Then we can use it to migrate your existing Kong Gateway to Envoy Gateway.
 
-As the demo shows, the Kong2Envoy lets you continue using your existing Kong plugins for request and response processing, even after migrating from Ingress to Gateway, enabling a smoother transition. You can then gradually replace those plugins with Gateway API [HTTPRoute filters](https://gateway-api.sigs.k8s.io/reference/spec/#gateway.networking.k8s.io/v1.HTTPRouteFilter) and [Envoy Gateway API Extensions](https://gateway.envoyproxy.io/docs/api/extension_types/) at your own pace.
+Kong2eg accepts a few command line flags to customize the generated resources. You can run `kong2eg print -h` to see the available options.
 
-You can use the sample configuration in the kong2envoy directory as a reference for migrating your Kong plugins to Envoy Gateway.
+```bash
+kong2eg print -h
+Prints Envoy Gateway configuration to run Kong plugins with kong2envoy
 
-1. Create a `EnvoyProxy` resource to deploy kong2envoy as a sidecar to Envoy Proxy.
+Usage:
+  kong2eg print  [flags]
+
+Aliases:
+  print, p
+
+Flags:
+      --gateway string        Name of the Envoy Gateway resource. (default "eg")
+      --gatewayclass string   Name of the GatewayClass resource. (default "eg")
+  -h, --help                  help for print
+      --kong-config string    Kong configuration file to use. Defaults to the embedded demo configuration.
+      --namespace string      Kubernetes namespace to use for the Envoy Gateway resources. (default "default")
+```
+
+You can save the output to a file, check the generated resources, tweak them if necessary, and then apply them to the cluster.
+
+```bash
+kong2eg print --kong-config kong.yaml --namespace default --gateway eg --gatewayclass eg  > kong2eg.yaml
+ ```
+
+Here is a brief overview of the generated resources.
+
+1. `EnvoyProxy` resource to deploy kong2envoy as a sidecar to Envoy Proxy.
 
 ```yaml
 apiVersion: gateway.envoyproxy.io/v1alpha1
@@ -177,7 +228,7 @@ spec:
               emptyDir: {}
 ```
 
-1. Create a `GatewayClass` resource. GatewayClass is used to define the controller that will be used to manage the Gateway resource.
+1. `GatewayClass` resource which is used to define the controller that will be used to manage the Gateway resource.
 
 ```yaml
 apiVersion: gateway.networking.k8s.io/v1
@@ -188,9 +239,7 @@ spec:
   controllerName: gateway.envoyproxy.io/gatewayclass-controller
 ```
 
-1. Create a `Gateway` resource. Envoy Gateway will watch the Gateway resource and deploy Envoy Proxy for it. Reference the `EnvoyProxy` resource that you created in step 1 in the `infrastructure` field.
-
-Note: `EnvoyProxy` resource can also be [associated with a `GatewayClass` to apply it to all `Gateway` resources of that `GatewayClass`](https://gateway.envoyproxy.io/docs/tasks/operations/customize-envoyproxy/).
+1. `Gateway` resource. Envoy Gateway will watch the Gateway resource and deploy Envoy Proxy for it. It references the `EnvoyProxy` resource in the `infrastructure` field to deploy the kong2envoy sidecar in the Envoy Proxy deployment.
 
 ```yaml
 apiVersion: gateway.networking.k8s.io/v1
@@ -210,25 +259,7 @@ spec:
       port: 80
 ```
 
-1. Create a `Role` and `RoleBinding` to grant kong2envoy ConfigMap read permissions. Please change the name of the Role and RoleBinding to match your Envoy service account name.
-
-The Envoy service account name is the same as the Envoy deployment name. It's usually in the format of `envoy-default-eg-xxxxxxxx`.
-
-You can find the Envoy service account name by running the following command:
-
-```bash
-kubectl get sa -n envoy-gateway-system --selector=gateway.envoyproxy.io/owning-gateway-name=${GATEWAY_NAME}
-```
-
-`${GATEWAY_NAME}` is the name of the Gateway resource that you created in step 1.
-
-For example:
-
-```bash
-kubectl get sa -n envoy-gateway-system --selector=gateway.envoyproxy.io/owning-gateway-name=eg
-NAME                        SECRETS   AGE
-envoy-default-eg-e41e7b31   0         14m
-```
+1. `Role` and `RoleBinding` to grant kong2envoy ConfigMap read permissions.
 
 ```yaml
 # RoleBinding is created to grant kong2envoy ConfigMap read permissions.
@@ -263,34 +294,7 @@ rules:
   - watch
 ```
 
-1. Create one or more `HTTPRoute` resources to define the routing rules for your application.
-
-```yaml
-apiVersion: gateway.networking.k8s.io/v1
-kind: HTTPRoute
-metadata:
-  name: httproute
-spec:
-  hostnames:
-  - www.example.com
-  parentRefs:
-  - group: gateway.networking.k8s.io
-    kind: Gateway
-    name: eg
-  rules:
-  - backendRefs:
-    - group: ""
-      kind: Service
-      name: backend
-      port: 3000
-      weight: 1
-    matches:
-    - path:
-        type: PathPrefix
-        value: /
-```
-
-1. Create a `Backend` resource to define the backend service that will be used by Envoy Proxy to connect to kong2envoy.
+1.  a `Backend` resource to define the backend service that will be used by Envoy Proxy to connect to kong2envoy.
 
 ```yaml
 apiVersion: gateway.envoyproxy.io/v1alpha1
@@ -303,7 +307,7 @@ spec:
       path: /var/sock/kong/ext-proc.sock
 ```
 
-1. Create an `EnvoyExtensionPolicy` resource to tell Envoy Proxy to use kong2envoy as an external processing extension.
+1.  an `EnvoyExtensionPolicy` resource to tell Envoy Proxy to use kong2envoy as an external processing extension.
 
 ```yaml
 apiVersion: gateway.envoyproxy.io/v1alpha1
@@ -325,7 +329,7 @@ spec:
       response: {}
 ```
 
-1. Configure the Kong configuration in a ConfigMap. You can migrate your existing Kong configuration to the ConfigMap.
+1. A ConfigMap that contains the Kong configuration. This configurtion comes from the `--kong-config` flag you provided to the `kong2eg print` command. If you don't provide this flag, it will use the embedded demo configuration.
 
 ```yaml
 apiVersion: v1
@@ -364,10 +368,36 @@ data:
 
 ```
 
+Next, you can create a `HTTPRoute` resources to define the routing rules for your application, and test if the Kong plugins are working as expected.
+
+```yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: httproute
+spec:
+  hostnames:
+  - www.example.com
+  parentRefs:
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+    name: eg
+  rules:
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: backend
+      port: 3000
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /
+```
 
 ## Ingress to Gateway API Migration
 
-In the first step, we use Kong2Envoy to migrate your existing Kong plugins to Envoy Gateway. Kong2Envoy handles request and response processing, while routing decisions are made by Envoy Gateway.
+In the previous step, we use kong2envoy to migrate your existing Kong plugins to Envoy Gateway. kong2envoy handles request and response processing, while routing decisions are made by Envoy Gateway.
 
 If you’re already using the Gateway API with Kong, you should be able to continue using the same Gateway API resources with Envoy Gateway—except for the Kong-specific HTTPRoute filters, which will need to be replaced with [Envoy Gateway HTTPRouteFilter or Envoy Gateway Policies](https://gateway.envoyproxy.io/docs/api/extension_types/).
 
