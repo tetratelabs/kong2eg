@@ -518,3 +518,12 @@ spec:
     - headers:
       - apikey
 ```
+
+# What's Next
+
+After you have migrated your Ingress resources to Gateway resources, you can then gradually replace those plugins with Gateway API [HTTPRoute filters](https://gateway-api.sigs.k8s.io/reference/spec/#gateway.networking.k8s.io/v1.HTTPRouteFilter) and [Envoy Gateway API Extensions](https://gateway.envoyproxy.io/docs/api/extension_types/) at your own pace, also you can leverage the advanced features of Envoy Gateway to
+manage your application traffic, security, observability, etc.
+
+Once you’ve migrated your Ingress resources to Gateway resources, you can gradually replace your existing plugins with Gateway API [HTTPRoute filters](https://gateway-api.sigs.k8s.io/reference/spec/#gateway.networking.k8s.io/v1.HTTPRouteFilter) and [Envoy Gateway API Extensions](https://gateway.envoyproxy.io/docs/api/extension_types/).
+
+This also gives you the opportunity to take advantage of Envoy Gateway’s advanced features for [traffic management](https://gateway.envoyproxy.io/docs/tasks/traffic/), [security](https://gateway.envoyproxy.io/docs/tasks/security/), [observability](https://gateway.envoyproxy.io/docs/tasks/observability/), and more.
