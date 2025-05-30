@@ -54,7 +54,7 @@ This step deploys kong2envoy as a sidecar to Envoy Proxy and sets up an EnvoyExt
 It also creates a Role and RoleBinding to grant kong2envoy ConfigMap read permissions. This is necessary for kong2envoy to load the Kong configuration from configMaps.
 
 ```bash
-kubectl apply -f manifests
+kubectl apply -f kong2envoy
 ```
 
 ## Test the Setup
@@ -85,9 +85,13 @@ You should see response headers added by Kong:
   ]
 ```
 
-## Migrate Your Kong Gateway to Envoy Gateway
+# Migrate Your Kong Gateway to Envoy Gateway
 
-You can use the sample configuration in the manifests directory as a reference for migrating your Kong Gateway to Envoy Gateway.
+## Kong Plugins Migration
+
+As the demo shows, the Kong2Envoy lets you continue using your existing Kong plugins for request and response processing, even after migrating from Ingress to Gateway, enabling a smoother transition. You can then gradually replace those plugins with Gateway API [HTTPRoute filters](https://gateway-api.sigs.k8s.io/reference/spec/#gateway.networking.k8s.io/v1.HTTPRouteFilter) and [Envoy Gateway API Extensions](https://gateway.envoyproxy.io/docs/api/extension_types/) at your own pace.
+
+You can use the sample configuration in the kong2envoy directory as a reference for migrating your Kong plugins to Envoy Gateway.
 
 1. Create a `EnvoyProxy` resource to deploy kong2envoy as a sidecar to Envoy Proxy.
 
@@ -357,4 +361,159 @@ data:
                 - "x-kong-response-header-1:foo"
                 - "x-kong-response-header-2:bar"
 
+```
+
+
+## Ingress to Gateway API Migration
+
+In the first step, we use Kong2Envoy to migrate your existing Kong plugins to Envoy Gateway. Kong2Envoy handles request and response processing, while routing decisions are made by Envoy Gateway.
+
+If you’re already using the Gateway API with Kong, you should be able to continue using the same Gateway API resources with Envoy Gateway—except for the Kong-specific HTTPRoute filters, which will need to be replaced with [Envoy Gateway HTTPRouteFilter or Envoy Gateway Policies](https://gateway.envoyproxy.io/docs/api/extension_types/).
+
+If you’re currently using Ingress resources to route traffic to your application, you can migrate those to Gateway resources as part of the transition.
+
+## Install Ingress2gateway command line tool
+
+This tool can help you migrate Ingress resources to Gateway resources. It can be installed using the following command:
+
+```bash
+brew install ingress2gateway
+```
+
+Or
+
+```bash
+go install github.com/kubernetes-sigs/ingress2gateway@v0.4.0
+```
+
+## Migrate Ingress resources to Gateway resources
+
+ingress2gateway prints the Gateway resources to stdout. You can redirect the output to a file and apply it to the cluster.
+
+ingress2gateway can directly read the Ingress and kong resources from the cluster, for example:
+
+```bash
+ingress2gateway print \
+  --providers=kong \
+  -A
+```
+
+Or you can provide the Ingress and kong resources as a file with the --input-file flag:
+
+```bash
+ingress2gateway print \
+  --providers=kong \
+  --input-file ingress2gateway/ingress-kong.yaml \
+  -A
+```
+
+We use the sample Ingress and kong resources in the ingress2gateway directory as the input file.
+
+You'll see the output Gateway resources in the terminal.
+
+```yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  annotations:
+    gateway.networking.k8s.io/generator: ingress2gateway-0.4.0
+  creationTimestamp: null
+  name: kong
+spec:
+  gatewayClassName: kong
+  listeners:
+  - name: http
+    port: 80
+    protocol: HTTP
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  annotations:
+    gateway.networking.k8s.io/generator: ingress2gateway-0.4.0
+  creationTimestamp: null
+  name: echo-ingress-all-hosts
+spec:
+  parentRefs:
+  - name: kong
+  rules:
+  - backendRefs:
+    - name: echo
+      port: 1027
+    filters:
+    - extensionRef:
+        group: configuration.konghq.com
+        kind: KongPlugin
+        name: key-auth-example
+      type: ExtensionRef
+    matches:
+    - path:
+        type: PathPrefix
+        value: /echo
+```
+
+While most of the generated Gateway resources are correct, a few adjustments are needed to make them work with Envoy Gateway:
+1. Skip the GatewayClass included in the output. Instead, use the one you created earlier that’s managed by Envoy Gateway.
+2. Update the gatewayClassName field in the output Gateway resources to match the correct class name—for example, eg.
+3. Reference the EnvoyProxy you created earlier in the infrastructure field of the Gateway resources, if you’re linking the EnvoyProxy to the Gateway directly (instead of to the GatewayClass).
+4. Update the HTTPRoute resources to replace Kong plugins with either [Envoy Gateway HTTPRouteFilters or Envoy Gateway Policies](https://gateway.envoyproxy.io/docs/api/extension_types/).
+
+Here is the adjusted Gateway resources for the example output:
+
+```yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  annotations:
+    gateway.networking.k8s.io/generator: ingress2gateway-0.4.0
+  name: eg
+spec:
+  gatewayClassName: eg
+  infrastructure:
+    parametersRef:
+      group: gateway.envoyproxy.io
+      kind: EnvoyProxy
+      name: custom-proxy-config
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  annotations:
+    gateway.networking.k8s.io/generator: ingress2gateway-0.4.0
+  name: echo-ingress-all-hosts
+spec:
+  parentRefs:
+  - name: eg
+  rules:
+  - backendRefs:
+    - name: echo
+      port: 1027
+    matches:
+    - path:
+        type: PathPrefix
+        value: /echo
+---
+# We use Envoy Gateway SecurityPolicy to replace the Kong key-auth plugin.
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: apikey-auth
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: echo-ingress-all-hosts
+  apiKeyAuth:
+    credentialRefs:
+    - group: ""
+      kind: Secret
+      name: apikey-secret
+    extractFrom:
+    - headers:
+      - apikey
 ```
