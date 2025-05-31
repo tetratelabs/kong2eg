@@ -2,7 +2,7 @@ BINARY_NAME=kong2eg
 BINARY_PATH=./bin/$(BINARY_NAME)
 SOURCE_PATH=./cmd/kong2eg
 
-.PHONY: build build-all build-linux build-darwin build-windows compress clean test help
+.PHONY: build build-all build-linux build-darwin build-windows compress clean test lint lint-fix imports fmt check deps help
 
 build: ## Build the binary for current platform
 	@mkdir -p bin
@@ -40,6 +40,23 @@ clean: ## Clean build artifacts
 
 test: ## Run tests
 	go test ./...
+
+lint: ## Run linter (golangci-lint) with import checks
+	@which golangci-lint > /dev/null || (echo "Installing golangci-lint..." && go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest)
+	golangci-lint run
+
+lint-fix: ## Run linter and auto-fix issues
+	@which golangci-lint > /dev/null || (echo "Installing golangci-lint..." && go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest)
+	golangci-lint run --fix
+
+imports: ## Fix import formatting and ordering
+	@which goimports > /dev/null || (echo "Installing goimports..." && go install golang.org/x/tools/cmd/goimports@latest)
+	find . -name "*.go" -not -path "./vendor/*" -exec goimports -w -local github.com/tetrate {} \;
+
+fmt: ## Format code
+	go fmt ./...
+
+check: fmt imports lint ## Run all formatting and linting checks
 
 deps: ## Download dependencies
 	go mod tidy

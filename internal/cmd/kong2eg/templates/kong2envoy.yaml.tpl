@@ -5,7 +5,11 @@ metadata:
     extension.tetrate.io/generator: kong2eg
     tetrate.io/generated-by: kong2eg
   name: kong-config
+  {{- if eq .EnvoyGatewayDeployMode "GatewayNamespace" }}
+  namespace: {{ default "default" .Namespace }}
+  {{- else }}
   namespace: "envoy-gateway-system"
+  {{- end }}
   labels:
     extension.tetrate.io/kong-config: "true"
     app: kong2envoy
@@ -69,7 +73,7 @@ metadata:
   annotations:
     tetrate.io/generated-by: kong2eg
   name: kong2eg-proxy-config
-  namespace: {{ default "envoy-gateway-system" .Namespace }}
+  namespace: {{ default "default" .Namespace }}
 spec:
   logging:
     level:
@@ -165,7 +169,11 @@ metadata:
   annotations:
     tetrate.io/generated-by: kong2eg
   name: {{ .EnvoyServiceAccount }}
+  {{- if eq .EnvoyGatewayDeployMode "GatewayNamespace" }}
+  namespace: {{ default "default" .Namespace }}
+  {{- else }}
   namespace: envoy-gateway-system
+  {{- end }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -173,7 +181,6 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: {{ .EnvoyServiceAccount }}
-  namespace: envoy-gateway-system
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -181,7 +188,11 @@ metadata:
   annotations:
     tetrate.io/generated-by: kong2eg
   name: {{ .EnvoyServiceAccount }}
+  {{- if eq .EnvoyGatewayDeployMode "GatewayNamespace" }}
+  namespace: {{ default "default" .Namespace }}
+  {{- else }}
   namespace: envoy-gateway-system
+  {{- end }}
 rules:
 - apiGroups:
   - ""
