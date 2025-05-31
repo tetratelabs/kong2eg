@@ -505,7 +505,7 @@ While most of the generated Gateway resources are correct, a few adjustments are
 1. Skip the GatewayClass included in the output. Instead, use the one you created earlier that’s managed by Envoy Gateway.
 2. Update the gatewayClassName field in the output Gateway resources to match the correct class name—for example, eg.
 3. Reference the EnvoyProxy you created earlier in the infrastructure field of the Gateway resources, if you’re linking the EnvoyProxy to the Gateway directly (instead of to the GatewayClass).
-4. Update the HTTPRoute resources to replace Kong plugins with either [Envoy Gateway HTTPRouteFilters or Envoy Gateway Policies](https://gateway.envoyproxy.io/docs/api/extension_types/).
+4. Update the HTTPRoute resources to replace Kong plugins with either the [Envoy Gateway HTTPRouteFilter or Envoy Gateway Policies](https://gateway.envoyproxy.io/docs/api/extension_types/).
 
 Here is the adjusted Gateway resources for the example output:
 
