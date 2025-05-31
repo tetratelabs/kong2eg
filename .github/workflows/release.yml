@@ -1,0 +1,35 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Run tests
+      run: make test
+
+    - name: Build for all platforms
+      run: make build-all
+
+    - name: Compress binaries
+      run: make compress
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: bin/*.gz
+        generate_release_notes: true
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -41,6 +41,9 @@ clean: ## Clean build artifacts
 test: ## Run tests
 	go test ./...
 
+test-overwrite: ## Run tests and overwrite testdata
+	go test  ./... -v -overwrite
+
 lint: ## Run linter (golangci-lint) with import checks
 	@which golangci-lint > /dev/null || (echo "Installing golangci-lint..." && go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest)
 	golangci-lint run
