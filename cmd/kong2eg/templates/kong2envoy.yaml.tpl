@@ -85,7 +85,7 @@ spec:
         initContainers:
         - name: ext-proc
           restartPolicy: Always
-          image: zhaohuabing/kong2envoy:latest
+          image: tetrate/kong2envoy:v0.3.3
           readinessProbe:
             exec:
               command: ["kong", "health"]
