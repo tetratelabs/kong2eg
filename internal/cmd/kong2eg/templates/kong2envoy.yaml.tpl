@@ -47,6 +47,8 @@ spec:
     messageTimeout: 10s
     processingMode:
       request:
+        attributes:
+        - destination.port
         body: Buffered
       response:
         body: Buffered
