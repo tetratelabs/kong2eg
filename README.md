@@ -176,7 +176,7 @@ spec:
           - name: socket-dir
             mountPath: /var/sock/kong  # uds socket for envoy to connect to kong2envoy
         initContainers:
-        - name: kong2envoy
+        - name: ext-proc
           restartPolicy: Always
           image: tetrate/kong2envoy:v0.3.3
           readinessProbe:
@@ -193,7 +193,7 @@ spec:
           - name: CPU_REQUEST
             valueFrom:
               resourceFieldRef:
-                containerName: kong2envoy
+                containerName: ext-proc
                 resource: requests.cpu
           - name: NAMESPACE
             valueFrom:
@@ -350,9 +350,12 @@ spec:
     - name: kong2envoy
       kind: Backend
       group: gateway.envoyproxy.io
+    messageTimeout: 10s
     processingMode:
-      request: {}
-      response: {}
+      request:
+        body: Buffered
+      response:
+        body: Buffered
 ```
 
 1. `ConfigMap` – Contains the Kong configuration used by kong2envoy. This is loaded from the `--kong-config`~ flag passed to kong2eg print. If not provided, a default demo configuration is used.
@@ -375,10 +378,12 @@ data:
       _format_version: "3.0"
       _transform: true
       services:
-      - name: example
-        url: http://www.example.com
+      - name: receiver
+        url: http://localhost:16002
         routes:
         - name: my-route-0
+          hosts:
+          - www.example.com
           paths:
           - /
           plugins:
@@ -394,9 +399,34 @@ data:
                 headers:
                 - "x-kong-response-header-1:foo"
                 - "x-kong-response-header-2:bar"
+        - name: my-route-1
+          hosts:
+          - foo.bar.com
+          paths:
+          - /
+          plugins:
+          - name: request-transformer
+            config:
+              add:
+                headers:
+                - "x-kong-request-header-3:foo"
+                - "x-kong-request-header-4:bar"
+          - name: response-transformer
+            config:
+              add:
+                headers:
+                - "x-kong-response-header-3:foo"
+                - "x-kong-response-header-4:bar
 ```
 
-Next, create an `HTTPRoute` resource to define routing rules for your application and verify that the Kong plugins are functioning as expected.
+Note:
+* The service url must be set to `http://localhost:16002`, which is the internal address where kong2envoy receives mutated requests from Kong. If this is not correctly set, kong2envoy won’t be able to process the requests.
+* In this setup, Kong is responsible only for transforming requests and responses. Routing and traffic management are handled by Envoy Gateway.
+This means the routes defined in your Kong configuration should align with the HTTPRoute resources in Envoy Gateway.
+For example, the configuration above includes two routes — one for www.example.com and another for foo.bar.com. These should match the corresponding HTTPRoute definitions you’ll create in the next step.
+
+Next, create `HTTPRoute` resources to define routing rules for your application and verify that the Kong plugins are functioning as expected. You can also use the `ingress2gateway` tool to migrate existing Ingress resources to HTTPRoute resources. However,
+you may need to adjust the generated resources to work with Envoy Gateway, as described in the next section.
 
 ```yaml
 apiVersion: gateway.networking.k8s.io/v1
@@ -416,7 +446,28 @@ spec:
       kind: Service
       name: backend
       port: 3000
-      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: foo
+spec:
+  hostnames:
+  - foo.bar.com
+  parentRefs:
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+    name: eg
+  rules:
+  - backendRefs:
+    - group: ""
+      kind: Service
+      name: backend
+      port: 3000
     matches:
     - path:
         type: PathPrefix
@@ -449,7 +500,7 @@ go install github.com/kubernetes-sigs/ingress2gateway@v0.4.0
 
 ingress2gateway prints the Gateway resources to stdout. You can redirect the output to a file and apply it to the cluster.
 
-ingress2gateway can directly read the Ingress and kong resources from the cluster, for example:
+ingress2gateway can directly read the Ingress and Kong resources from the cluster, for example:
 
 ```bash
 ingress2gateway print \
@@ -457,7 +508,7 @@ ingress2gateway print \
   -A
 ```
 
-Or you can provide the Ingress and kong resources as a file with the --input-file flag:
+Or you can provide the Ingress and Kong resources as a file with the --input-file flag:
 
 ```bash
 ingress2gateway print \
@@ -466,7 +517,7 @@ ingress2gateway print \
   -A
 ```
 
-We use the sample Ingress and kong resources in the ingress2gateway directory as the input file.
+We use the sample Ingress and Kong resources in the ingress2gateway directory as the input file.
 
 You'll see the output Gateway resources in the terminal.
 
@@ -576,6 +627,7 @@ spec:
     - headers:
       - apikey
 ```
+
 
 # What's Next
 

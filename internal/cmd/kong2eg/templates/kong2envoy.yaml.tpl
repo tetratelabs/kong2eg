@@ -90,7 +90,7 @@ spec:
           - name: socket-dir
             mountPath: /var/sock/kong
         initContainers:
-        - name: kong2envoy
+        - name: ext-proc
           restartPolicy: Always
           image: tetrate/kong2envoy:v0.3.3
           readinessProbe:
@@ -107,7 +107,7 @@ spec:
           - name: CPU_REQUEST
             valueFrom:
               resourceFieldRef:
-                containerName: kong2envoy
+                containerName: ext-proc
                 resource: requests.cpu
           - name: NAMESPACE
             valueFrom:

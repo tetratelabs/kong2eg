@@ -22,3 +22,21 @@ services:
           headers:
           - "x-kong-response-header-1:foo"
           - "x-kong-response-header-2:bar"
+  - name: my-route-1
+    hosts:
+    - foo.bar.com
+    paths:
+    - /
+    plugins:
+    - name: request-transformer
+      config:
+        add:
+          headers:
+          - "x-kong-request-header-3:foo"
+          - "x-kong-request-header-4:bar"
+    - name: response-transformer
+      config:
+        add:
+          headers:
+          - "x-kong-response-header-3:foo"
+          - "x-kong-response-header-4:bar"
