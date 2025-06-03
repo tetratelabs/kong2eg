@@ -176,7 +176,7 @@ spec:
           - name: socket-dir
             mountPath: /var/sock/kong  # uds socket for envoy to connect to kong2envoy
         initContainers:
-        - name: ext-proc
+        - name: kong2envoy
           restartPolicy: Always
           image: tetrate/kong2envoy:v0.3.3
           readinessProbe:
@@ -193,7 +193,7 @@ spec:
           - name: CPU_REQUEST
             valueFrom:
               resourceFieldRef:
-                containerName: ext-proc
+                containerName: kong2envoy
                 resource: requests.cpu
           - name: NAMESPACE
             valueFrom:
