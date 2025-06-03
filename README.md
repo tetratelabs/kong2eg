@@ -383,7 +383,7 @@ data:
         routes:
         - name: my-route-0
           hosts:
-          - www.example.com
+          - www.example.com:10080
           paths:
           - /
           plugins:
@@ -401,7 +401,7 @@ data:
                 - "x-kong-response-header-2:bar"
         - name: my-route-1
           hosts:
-          - foo.bar.com
+          - foo.bar.com:10080
           paths:
           - /
           plugins:
@@ -421,9 +421,12 @@ data:
 
 Note:
 * The service url must be set to `http://localhost:16002`, which is the internal address where kong2envoy receives mutated requests from Kong. If this is not correctly set, kong2envoy won’t be able to process the requests.
+* The port in the hostnames defined in the Kong configuration (e.g., `www.example.com:10080`) must match the internal listener port used by Envoy. This is a known limitation due to how external processing (ext-proc) works in Envoy.
+  * If the Gateway listener port is less than 1024, the Envoy listener port is calculated as 10000 + <Gateway port> (e.g., port 80 becomes 10080).
+  * If the Gateway listener port is 1024 or higher, Envoy uses the same port number as specified in the Gateway.
 * In this setup, Kong is responsible only for transforming requests and responses. Routing and traffic management are handled by Envoy Gateway.
 This means the routes defined in your Kong configuration should align with the HTTPRoute resources in Envoy Gateway.
-For example, the configuration above includes two routes — one for www.example.com and another for foo.bar.com. These should match the corresponding HTTPRoute definitions you’ll create in the next step.
+For example, the configuration above includes two routes — one for `www.example.com` and another for `foo.bar.com`. These should match the corresponding HTTPRoute definitions you’ll create in the next step.
 
 Next, create `HTTPRoute` resources to define routing rules for your application and verify that the Kong plugins are functioning as expected. You can also use the `ingress2gateway` tool to migrate existing Ingress resources to HTTPRoute resources. However,
 you may need to adjust the generated resources to work with Envoy Gateway, as described in the next section.
