@@ -88,27 +88,37 @@ kong2eg print
 curl http://172.18.0.200 -H "Host: www.example.com"
 ```
 
-You should see the response headers added by the configured Kong plugins.
+You should see the request and response headers added by the configured Kong plugins.
 
 ```
-"Via": [
-   "1.1 kong/3.9.0"
-  ],
-  "X-Kong-Proxy-Latency": [
-   "1"
-  ],
-  "X-Kong-Request-Id": [
-   "f5fe5d3dfcf3a06452b66b33c2fa1c1b"
-  ],
-  "X-Kong-Response-Header-1": [
+< HTTP/1.1 200 OK
+... (other headers)
+
+# Response Headers added by Kong plugins
+< x-kong-response-header-1: foo
+< x-kong-response-header-2: bar
+
+{
+ "path": "/",
+ "host": "www.example.com",
+ "method": "GET",
+ "proto": "HTTP/1.1",
+ "headers": {
+
+  # Request Headers added by Kong plugins
+  "X-Kong-Request-Header-1": [
    "foo"
   ],
-  "X-Kong-Response-Header-2": [
+  "X-Kong-Request-Header-2": [
    "bar"
   ],
-  "X-Kong-Upstream-Latency": [
-   "8"
-  ]
+  "X-Kong-Request-Id": [
+   "56ee67759d59160cd3fb1975f753843b"
+  ],
+
+ },
+
+}
 ```
 
 ## Migrating Your Kong Gateway to Envoy Gateway
@@ -166,7 +176,7 @@ spec:
           - name: socket-dir
             mountPath: /var/sock/kong  # uds socket for envoy to connect to kong2envoy
         initContainers:
-        - name: ext-proc
+        - name: kong2envoy
           restartPolicy: Always
           image: tetrate/kong2envoy:v0.3.3
           readinessProbe:
@@ -183,7 +193,7 @@ spec:
           - name: CPU_REQUEST
             valueFrom:
               resourceFieldRef:
-                containerName: ext-proc
+                containerName: kong2envoy
                 resource: requests.cpu
           - name: NAMESPACE
             valueFrom:

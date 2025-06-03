@@ -44,9 +44,12 @@ spec:
     - name: kong2envoy
       kind: Backend
       group: gateway.envoyproxy.io
+    messageTimeout: 10s
     processingMode:
-      request: {}
-      response: {}
+      request:
+        body: Buffered
+      response:
+        body: Buffered
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
@@ -87,7 +90,7 @@ spec:
           - name: socket-dir
             mountPath: /var/sock/kong
         initContainers:
-        - name: ext-proc
+        - name: kong2envoy
           restartPolicy: Always
           image: tetrate/kong2envoy:v0.3.3
           readinessProbe:
@@ -104,7 +107,7 @@ spec:
           - name: CPU_REQUEST
             valueFrom:
               resourceFieldRef:
-                containerName: ext-proc
+                containerName: kong2envoy
                 resource: requests.cpu
           - name: NAMESPACE
             valueFrom:
