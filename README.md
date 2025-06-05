@@ -472,6 +472,68 @@ spec:
         value: /
 ```
 
+## Custom Kong Plugins
+
+Kong2eg also supports custom Kong plugins. You can define your plugin in a ConfigMap and reference it directly in your Kong configuration.
+
+For example, if you have a custom plugin called `my-custom-plugin` stored in a ConfigMap named `custom-kong-plugin`, you can include it in your Kong config like this:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app: kong2envoy
+    extension.tetrate.io/kong-config: "true"
+  name: kong-config
+  namespace: envoy-gateway-system
+data:
+  config: |
+    plugins:
+    - name: my-custom-plugin
+      configMapName: custom-kong-plugin
+    kong.yaml: |+
+      _format_version: "3.0"
+      _transform: true
+      services:
+      - name: receiver
+        url: http://localhost:16002
+        routes:
+        - name: no-op-route # The fallback route for Kong to handle unmatched requests
+          paths:
+          - /
+        - name: my-route-0
+          hosts:
+          - www.example.com:10080
+          paths:
+          - /
+          plugins:
+          - name: my-custom-plugin
+            config:
+              message: "Hello from my custom plugin!"
+```
+
+You can find a sample custom Kong plugin configuration in the `examples/custom-kong-plugin` directory. This example plugin adds a `x-my-custom-plugin-message` header to the response with a custom message.
+
+Create the ConfigMap for the custom plugin, and include it in the Kong configuration:
+
+```bash
+kubectl apply -f examples/custom-kong-plugin
+```
+
+You 'll see the header added to the response when you make a request to the service:
+
+```bash
+curl http://172.18.0.200/ -H "Host: www.example.com"   -v
+
+< HTTP/1.1 200 OK
+... (other headers)
+
+# Response Headers added by the custom Kong plugin
+< x-my-custom-plugin-message: Hello from my custom plugin!
+
+```
+
 ## Migrating Kubernetes Ingress to Gateway API
 
 In the previous step, we use kong2envoy to migrate your existing Kong plugins to Envoy Gateway. kong2envoy handles request and response processing, while routing decisions are made by Envoy Gateway.
