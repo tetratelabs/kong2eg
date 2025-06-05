@@ -124,8 +124,6 @@ spec:
             mountPath: /var/sock/kong
           - name: kong-config
             mountPath: /usr/local/share/kong2envoy/
-          - name: podinfo
-            mountPath: /etc/podinfo
           resources:
             requests:
               cpu: 100m
@@ -138,12 +136,6 @@ spec:
           labels:
             app: kong2envoy  # this label is used by kong2envoy to match the ConfigMap that contains the Kong configuration
           volumes:
-            - name: podinfo
-              downwardAPI:
-                items:
-                - path: "labels"
-                  fieldRef:
-                    fieldPath: metadata.labels
             - name: socket-dir
               emptyDir: {}
             - name: kong-config
