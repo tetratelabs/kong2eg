@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: custom-kong-plugin
+  namespace: envoy-gateway-system
+data:
+  handler.lua: |
+    local MyCustomPlugin = {
+      PRIORITY = 1000,
+      VERSION = "0.0.1",
+    }
+
+    function MyCustomPlugin:header_filter(config)
+      kong.log("Running my custom plugin!")
+      kong.response.set_header("x-my-custom-plugin-message", config.message)
+    end
+
+    return MyCustomPlugin
+  schema.lua: |
+    return {
+      name = "my-custom-plugin",
+      fields = {
+        { config = {
+            type = "record",
+            fields = {
+              { message = { type = "string", default = "Hello from my custom plugin!" } },
+            },
+          },
+        },
+      },
+    }

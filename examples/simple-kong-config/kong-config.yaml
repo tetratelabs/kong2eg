@@ -1,0 +1,45 @@
+_format_version: "3.0"
+_transform: true
+services:
+- name: receiver
+  url: http://localhost:16002
+  routes:
+  - name: no-op-route # The fallback route for Kong to handle unmatched requests
+    paths:
+    - /
+  - name: my-route-0
+    hosts:
+    - www.example.com:10080
+    paths:
+    - /
+    plugins:
+    - name: request-transformer
+      config:
+        add:
+          headers:
+          - "x-kong-request-header-1:foo"
+          - "x-kong-request-header-2:bar"
+    - name: response-transformer
+      config:
+        add:
+          headers:
+          - "x-kong-response-header-1:foo"
+          - "x-kong-response-header-2:bar"
+  - name: my-route-1
+    hosts:
+    - foo.bar.com:10080
+    paths:
+    - /
+    plugins:
+    - name: request-transformer
+      config:
+        add:
+          headers:
+          - "x-kong-request-header-3:foo"
+          - "x-kong-request-header-4:bar"
+    - name: response-transformer
+      config:
+        add:
+          headers:
+          - "x-kong-response-header-3:foo"
+          - "x-kong-response-header-4:bar"
