@@ -138,11 +138,12 @@ Aliases:
   print, p
 
 Flags:
-      --gateway string        Name of the Envoy Gateway resource. (default "eg")
-      --gatewayclass string   Name of the GatewayClass resource. (default "eg")
-  -h, --help                  help for print
-      --kong-config string    Kong configuration file to use. Defaults to the embedded demo configuration.
-      --namespace string      Kubernetes namespace to use for the Envoy Gateway resources. (default "default")
+      --envoy-gateway-deploy-mode string   Envoy Gateway deployment mode. Options: ControllerNamespace, or GatewayNamespace. (default "ControllerNamespace")
+      --gateway string                     Name of the Envoy Gateway resource. (default "eg")
+      --gatewayclass string                Name of the GatewayClass resource. (default "eg")
+  -h, --help                               help for print
+      --kong-config string                 Kong configuration file to use. Defaults to the embedded demo configuration.
+      --namespace string                   Kubernetes namespace to use for the Envoy Gateway resources. (default "default")
 ```
 
 You can save the output to a file, review the generated resources, and make any necessary adjustments—for example, tuning resource requests and limits based on your application’s load—before applying them to the cluster.
