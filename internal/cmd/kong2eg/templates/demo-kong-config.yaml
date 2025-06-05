@@ -4,6 +4,9 @@ services:
 - name: receiver
   url: http://localhost:16002
   routes:
+  - name: no-op-route # The fallback route for Kong to handle unmatched requests
+    paths:
+    - /
   - name: my-route-0
     hosts:
     - www.example.com:10080

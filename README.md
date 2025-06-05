@@ -199,8 +199,6 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.namespace
-          - name: DEBUG
-            value: "true"
           - name: APP_LABEL
             valueFrom:
               fieldRef:
@@ -213,12 +211,9 @@ spec:
           - name: podinfo
             mountPath: /etc/podinfo
           resources:
-            limits:
-              cpu: "6"
-              memory: "2Gi"
             requests:
-              cpu: "6"
-              memory: "2Gi"
+              cpu: 100m
+              memory: 512Mi
           securityContext:
             runAsUser: 65532
             runAsGroup: 65532

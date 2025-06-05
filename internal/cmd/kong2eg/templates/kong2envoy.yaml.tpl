@@ -115,8 +115,6 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.namespace
-          - name: DEBUG
-            value: "true"
           - name: APP_LABEL
             valueFrom:
               fieldRef:
