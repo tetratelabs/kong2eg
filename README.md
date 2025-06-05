@@ -46,7 +46,7 @@ The Backend API is an Envoy Gateway extension that allows integration with non-K
 
 ```bash
 helm install eg oci://docker.io/envoyproxy/gateway-helm \
-  --version v1.4.0 \
+  --version v1.4.1 \
   --set config.envoyGateway.extensionApis.enableBackend=true \
   -n envoy-gateway-system \
   --create-namespace
@@ -57,7 +57,7 @@ helm install eg oci://docker.io/envoyproxy/gateway-helm \
 Deploy a demo app that relies on Kong plugins for traffic processing.
 
 ```bash
-kubectl apply -f https://github.com/envoyproxy/gateway/releases/download/v1.4.0/quickstart.yaml
+kubectl apply -f https://github.com/envoyproxy/gateway/releases/download/v1.4.1/quickstart.yaml
 ```
 
 ## Step 3: Deploy kong2envoy Using kong2eg CLI
@@ -145,7 +145,7 @@ Flags:
       --namespace string      Kubernetes namespace to use for the Envoy Gateway resources. (default "default")
 ```
 
-You can save the output to a file, check the generated resources, tweak them if necessary, and then apply them to the cluster.
+You can save the output to a file, review the generated resources, and make any necessary adjustments—for example, tuning resource requests and limits based on your application’s load—before applying them to the cluster.
 
 ```bash
 kong2eg print --kong-config kong.yaml --namespace default --gateway eg --gatewayclass eg  > kong2eg.yaml
@@ -199,8 +199,6 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.namespace
-          - name: DEBUG
-            value: "true"
           - name: APP_LABEL
             valueFrom:
               fieldRef:
@@ -213,12 +211,9 @@ spec:
           - name: podinfo
             mountPath: /etc/podinfo
           resources:
-            limits:
-              cpu: "6"
-              memory: "2Gi"
             requests:
-              cpu: "6"
-              memory: "2Gi"
+              cpu: 100m
+              memory: 512Mi
           securityContext:
             runAsUser: 65532
             runAsGroup: 65532

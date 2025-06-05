@@ -115,8 +115,6 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.namespace
-          - name: DEBUG
-            value: "true"
           - name: APP_LABEL
             valueFrom:
               fieldRef:
@@ -126,15 +124,10 @@ spec:
             mountPath: /var/sock/kong
           - name: kong-config
             mountPath: /usr/local/share/kong2envoy/
-          - name: podinfo
-            mountPath: /etc/podinfo
           resources:
-            limits:
-              cpu: "6"
-              memory: "2Gi"
             requests:
-              cpu: "6"
-              memory: "2Gi"
+              cpu: 100m
+              memory: 512Mi
           securityContext:
             runAsUser: 65532
             runAsGroup: 65532
@@ -143,12 +136,6 @@ spec:
           labels:
             app: kong2envoy  # this label is used by kong2envoy to match the ConfigMap that contains the Kong configuration
           volumes:
-            - name: podinfo
-              downwardAPI:
-                items:
-                - path: "labels"
-                  fieldRef:
-                    fieldPath: metadata.labels
             - name: socket-dir
               emptyDir: {}
             - name: kong-config
