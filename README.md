@@ -28,7 +28,7 @@ Kong is only responsible for modifying requests and responses (e.g., adding head
 Download the `kong2eg` binary from the [releases page](https://github.com/tetratelabs/kong2eg/releases) or install it using:
 
 ```bash
-go install github.com/tetratelabs/kong2eg@latest
+go install github.com/tetratelabs/kong2eg/cmd/kong2eg@latest
 ```
 
 To build from source:
